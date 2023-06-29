@@ -1,0 +1,216 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC Mode with no internet access - Provision an Amazon SageMaker Studio domain, a user profile, and the JupyterServer app.
+Parameters:
+  CoreNetworkingStackName:
+    Description: Name of the networking stack you created earlier
+    Type: String
+  SageMakerStudioUserProfileName:
+    Type: String
+    Description: SageMaker Studio User profile name
+    Default: default-user
+  CodeArtifactDomainName:
+    Description: Domain name for CodeArtifact
+    Type: String
+    Default: anycompany
+  UpstreamRepositoryName:
+    Description: Name of upstream public pypi repository
+    Type: String
+    Default: pypi-store
+  PrivateRepositoryName:
+    Description: Name of private pypi repository
+    Type: String
+    Default: private-pypi
+
+
+Mappings: 
+  SageMakerImageRegionToAccountMap: 
+    us-east-1: 
+      accountid: '081325390199'
+    us-east-2:
+      accountid: '429704687514'
+    us-west-1: 
+      accountid: '742091327244'
+    us-west-2: 
+      accountid: '236514542706'
+    af-south-1:
+      accountid: '559312083959'
+    ap-east-1:
+      accountid: '493642496378'
+    ap-south-1:
+      accountid: '394103062818'
+    ap-northeast-2:
+      accountid: '806072073708'
+    ap-southeast-1:
+      accountid: '492261229750'
+    ap-southeast-2:
+      accountid: '452832661640'
+    ap-northeast-1: 
+      accountid: '102112518831'
+    ca-central-1:
+      accountid: '310906938811'
+    eu-central-1: 
+      accountid: '936697816551'
+    eu-west-1:
+      accountid: '470317259841'
+    eu-west-2:
+      accountid: '712779665605'
+    eu-west-3:
+      accountid: '615547856133'
+    eu-north-1:
+      accountid: '243637512696'
+    eu-south-1:
+      accountid: '592751261982'
+    sa-east-1:
+      accountid: '782484402741'
+
+Resources:
+  StudioDomain:
+    Type: AWS::SageMaker::Domain
+    Properties:
+      AuthMode: IAM
+      AppNetworkAccessType: "VpcOnly"
+      DefaultUserSettings:
+        ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+        SecurityGroups: 
+          - Fn::ImportValue:
+              !Sub '${CoreNetworkingStackName}-SecurityGroup'
+      DomainName: !Sub '${AWS::StackName}'
+      SubnetIds:
+        - Fn::ImportValue:
+            !Sub '${CoreNetworkingStackName}-Subnet1'
+        - Fn::ImportValue:
+            !Sub '${CoreNetworkingStackName}-Subnet2'
+      VpcId:
+        Fn::ImportValue:
+          !Sub '${CoreNetworkingStackName}-VPC'
+
+  UserProfile:
+    Type: AWS::SageMaker::UserProfile
+    Properties:
+      DomainId: !Ref StudioDomain
+      UserProfileName: !Ref SageMakerStudioUserProfileName
+      UserSettings:
+        ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+        JupyterServerAppSettings: 
+          DefaultResourceSpec:
+            InstanceType: system
+            SageMakerImageArn:
+              Fn::Sub:
+                - 'arn:aws:sagemaker:${AWS::Region}:${AccountId}:image/jupyter-server-3'
+                - AccountId: !FindInMap [SageMakerImageRegionToAccountMap, !Ref 'AWS::Region', accountid]            
+
+  JupyterServerApp:
+    Type: AWS::SageMaker::App
+    DependsOn: UserProfile
+    Properties:
+      AppName: default
+      AppType: JupyterServer
+      DomainId: !Ref StudioDomain
+      UserProfileName: !Ref SageMakerStudioUserProfileName
+      ResourceSpec: 
+        SageMakerImageArn: 
+          Fn::Sub:
+            - 'arn:aws:sagemaker:${AWS::Region}:${AccountId}:image/jupyter-server-3'
+            - AccountId: !FindInMap [SageMakerImageRegionToAccountMap, !Ref 'AWS::Region', accountid]
+  
+
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AmazonSageMakerExecutionRole-${AWS::StackName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+                - codeartifact.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AWSCodeArtifactAdminAccess
+
+  CodeArtifactBearerPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub 'CodeArtifactBearer-${AWS::StackName}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: 
+          - codeartifact:GetAuthorizationToken
+          Resource: !Sub 'arn:aws:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${CodeArtifactDomainName}'
+        - Effect: Allow
+          Action: 
+          - sts:GetServiceBearerToken
+          Resource: '*'
+          Condition:
+            StringEquals:
+              sts:AWSServiceName: 'codeartifact.amazonaws.com'
+      Roles: 
+      - !Ref SageMakerExecutionRole
+
+  MyCodeArtifactDomain:
+    Type: 'AWS::CodeArtifact::Domain'
+    Properties:
+      DomainName: !Ref CodeArtifactDomainName
+
+  MyCodeArtifactUpstreamRepository:
+    Type: 'AWS::CodeArtifact::Repository'
+    Properties:
+      RepositoryName: !Ref UpstreamRepositoryName
+      DomainName: !GetAtt MyCodeArtifactDomain.Name
+      ExternalConnections:
+        - public:pypi
+  MyCodeArtifactRepository:
+    Type: 'AWS::CodeArtifact::Repository'
+    Properties:
+      RepositoryName: !Ref PrivateRepositoryName
+      DomainName: !GetAtt MyCodeArtifactDomain.Name
+      Upstreams:
+        - !GetAtt MyCodeArtifactUpstreamRepository.Name
+      PermissionsPolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+            Action:
+              - codeartifact:AssociateExternalConnection
+              - codeartifact:CopyPackageVersions
+              - codeartifact:DeletePackageVersions
+              - codeartifact:DeleteRepository
+              - codeartifact:DeleteRepositoryPermissionsPolicy
+              - codeartifact:DescribePackageVersion
+              - codeartifact:DescribeRepository
+              - codeartifact:DisassociateExternalConnection
+              - codeartifact:DisposePackageVersions
+              - codeartifact:GetPackageVersionReadme
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:ListPackageVersionAssets
+              - codeartifact:ListPackageVersionDependencies
+              - codeartifact:ListPackageVersions
+              - codeartifact:ListPackages
+              - codeartifact:PublishPackageVersion
+              - codeartifact:PutPackageMetadata
+              - codeartifact:PutRepositoryPermissionsPolicy
+              - codeartifact:ReadFromRepository
+              - codeartifact:UpdatePackageVersionsStatus
+              - codeartifact:UpdateRepository
+            Resource: '*'
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt SageMakerExecutionRole.Arn  
+
+Outputs:
+  StudioDomainArn:
+    Description: The Amazon Resource Name of the Amazon SageMaker Studio domain
+    Value: !GetAtt StudioDomain.DomainArn
+  UserProfileArn:
+    Description: The Amazon Resource Name of the Amazon SageMaker Studio user profile
+    Value: !GetAtt UserProfile.UserProfileArn
+  ExecutionRoleArn:
+    Description: The Amazon Resource Name of the Amazon SageMaker Studio execution role attached to user profile
+    Value: !GetAtt SageMakerExecutionRole.Arn

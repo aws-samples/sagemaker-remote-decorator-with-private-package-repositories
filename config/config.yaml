@@ -1,0 +1,18 @@
+SchemaVersion: '1.0'
+SageMaker:
+  PythonSDK:
+    Modules:
+      RemoteFunction:
+        Dependencies: '../config/requirements.txt'
+        IncludeLocalWorkDir: true
+        InstanceType: 'ml.m5.xlarge'
+        PreExecutionCommands:
+            - 'aws codeartifact login --tool pip --domain anycompany --domain-owner 154856345127 --repository private-pypi --endpoint-url https://vpce-03280183472bc3bab-05513oyp.api.codeartifact.eu-west-1.vpce.amazonaws.com'
+        RoleArn: 'arn:aws:iam::154856345127:role/AmazonSageMakerExecutionRole-studio-codeartifact'
+        S3RootUri: 's3://sagemaker-eu-west-1-154856345127'
+        VpcConfig:
+            SecurityGroupIds: 
+            - 'sg-0aaa6034eceb2d690'
+            Subnets: 
+            - 'subnet-09ecfeec1498b165d'
+            - 'subnet-0f526257d00934c24'
