@@ -7,12 +7,12 @@ SageMaker:
         IncludeLocalWorkDir: true
         InstanceType: 'ml.m5.xlarge'
         PreExecutionCommands:
-            - 'aws codeartifact login --tool pip --domain anycompany --domain-owner 154856345127 --repository private-pypi --endpoint-url https://vpce-03280183472bc3bab-05513oyp.api.codeartifact.eu-west-1.vpce.amazonaws.com'
-        RoleArn: 'arn:aws:iam::154856345127:role/AmazonSageMakerExecutionRole-studio-codeartifact'
-        S3RootUri: 's3://sagemaker-eu-west-1-154856345127'
+            - 'aws codeartifact login --tool pip --domain anycompany --domain-owner <AWS_Account_Number> --repository private-pypi --endpoint-url <CodeArtifact-VPC-endpoint-url-prefixed with https://>'
+        RoleArn: '<execution role ARN for running training job>'
+        S3RootUri: '<s3 bucket to store the job output>'
         VpcConfig:
             SecurityGroupIds: 
-            - 'sg-0aaa6034eceb2d690'
+            - '<security group id used by SageMaker Studio>'
             Subnets: 
-            - 'subnet-09ecfeec1498b165d'
-            - 'subnet-0f526257d00934c24'
+            - '<VPC subnet id 1>'
+            - '<VPC subnet id 2>'
