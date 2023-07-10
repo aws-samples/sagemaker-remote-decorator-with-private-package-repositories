@@ -1,6 +1,6 @@
 # SageMaker @remote decorator with private package repository
 
-This repository is part of AWS blog post [Easily access private repos using the remote decorator mode for SageMaker training workloads]([../..](https://aws.amazon.com/blogs/machine-learning/access-private-repos-using-the-remote-decorator-for-amazon-sagemaker-training-workloads/) which demonstrates how to use [@remote decorator](https://docs.aws.amazon.com/sagemaker/latest/dg/train-remote-decorator.html) from [Amazon SageMaker Python SDK](https://sagemaker.readthedocs.io/en/stable/) while running the SageMaker training job in a VPC with no internet access. To enable download of dependencies for the training job, it uses a privte PyPI AWS CodeArtifact repository instead.
+This repository is part of AWS blog post [Easily access private repos using the remote decorator mode for SageMaker training workloads](https://aws.amazon.com/blogs/machine-learning/access-private-repos-using-the-remote-decorator-for-amazon-sagemaker-training-workloads/) which demonstrates how to use [@remote decorator](https://docs.aws.amazon.com/sagemaker/latest/dg/train-remote-decorator.html) from [Amazon SageMaker Python SDK](https://sagemaker.readthedocs.io/en/stable/) while running the SageMaker training job in a VPC with no internet access. To enable download of dependencies for the training job, it uses a privte PyPI AWS CodeArtifact repository instead.
 
 
 
